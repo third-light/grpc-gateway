@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/textproto"
+	"sort"
 	"strings"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/internal/httprule"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/utilities"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -193,6 +195,13 @@ func (s *ServeMux) HandlePath(meth string, pathPattern string, h HandlerFunc) er
 	return nil
 }
 
+// ReprioritisePaths 'intelligently' reprioritises the order of REST handler paths
+func (s *ServeMux) ReprioritisePaths() {
+	for meth, handlers := range s.handlers {
+		s.handlers[meth] = sortHandlers(handlers)
+	}
+}
+
 // ServeHTTP dispatches the request to the first handler whose pattern matches to r.Method and r.Path.
 func (s *ServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -296,4 +305,47 @@ func (s *ServeMux) isPathLengthFallback(r *http.Request) bool {
 type handler struct {
 	pat Pattern
 	h   HandlerFunc
+}
+
+func getOpPriority(op utilities.OpCode) int {
+	// This defines the priority of opcodes used
+	// when sorting a handler slice. Unfortunately
+	// it's not as simple as is op1 > op2.
+	switch op {
+	case utilities.OpPushM:
+		return 0
+	case utilities.OpLitPush:
+		return 1
+	case utilities.OpPush:
+		return 2
+	case utilities.OpConcatN:
+		return 3
+	case utilities.OpCapture:
+		return 4
+	default:
+		// Invalid opcode
+		return -1
+	}
+}
+
+func sortHandlers(handlers []handler) []handler {
+	sort.SliceStable(handlers, func(i, j int) bool {
+		li := len(handlers[i].pat.ops)
+		lj := len(handlers[j].pat.ops)
+		if li != lj {
+			return li < lj
+		}
+
+		var pi, pj int
+		for x := 0; x < li; x++ {
+			pi = getOpPriority(handlers[i].pat.ops[x].code)
+			pj = getOpPriority(handlers[j].pat.ops[x].code)
+			if pi != pj {
+				return pi < pj
+			}
+		}
+
+		return false
+	})
+	return handlers
 }
