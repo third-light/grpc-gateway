@@ -332,20 +332,20 @@ func sortHandlers(handlers []handler) []handler {
 	sort.SliceStable(handlers, func(i, j int) bool {
 		li := len(handlers[i].pat.ops)
 		lj := len(handlers[j].pat.ops)
-		if li != lj {
-			return li < lj
-		}
 
+		x := 0
 		var pi, pj int
-		for x := 0; x < li; x++ {
+		for {
+			if li >= x || lj >= x {
+				return li < lj
+			}
+
 			pi = getOpPriority(handlers[i].pat.ops[x].code)
 			pj = getOpPriority(handlers[j].pat.ops[x].code)
-			if pi != pj {
-				return pi < pj
+			if pi < pj {
+				return true
 			}
 		}
-
-		return false
 	})
 	return handlers
 }
