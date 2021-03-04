@@ -324,7 +324,7 @@ func getOpPriority(op utilities.OpCode) int {
 		return 4
 	default:
 		// Invalid opcode
-		return -1
+		return 5
 	}
 }
 
