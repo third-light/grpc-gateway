@@ -310,7 +310,8 @@ type handler struct {
 func getOpPriority(op utilities.OpCode) int {
 	// This defines the priority of opcodes used
 	// when sorting a handler slice. Unfortunately
-	// it's not as simple as is op1 > op2.
+	// it's not as simple as comparing utilities.OpCode
+	// values directly.
 	switch op {
 	case utilities.OpPushM:
 		return 0
@@ -336,7 +337,7 @@ func sortHandlers(handlers []handler) []handler {
 		x := 0
 		var pi, pj int
 		for {
-			if li >= x || lj >= x {
+			if x >= li || x >= lj {
 				return li < lj
 			}
 
@@ -345,6 +346,8 @@ func sortHandlers(handlers []handler) []handler {
 			if pi < pj {
 				return true
 			}
+
+			x++
 		}
 	})
 	return handlers
